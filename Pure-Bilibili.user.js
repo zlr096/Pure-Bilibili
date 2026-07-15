@@ -2,16 +2,16 @@
 // @name         Pure Bilibili
 // @name:zh-CN   B站纯净模式
 // @namespace    https://github.com/zlr096/Pure-Bilibili
-// @version      1.6.0
-// @description  Keep only normal videos on Bilibili. Block live streams, series, events, and ads. Silent preloading, no flickering, smooth scrolling.
+// @version      1.7.0
+// @description  Blocks all non-video content, eliminates ads, enhances video playback, and provides silent preloading for a smooth, elegant Bilibili experience.
 // @description:zh-CN  屏蔽一切非视频卡片，让b站不再充斥牛皮藓广告，视频增强，无感预加载，回归优雅丝滑体验。
 // @author       ZLR & Assistant
 // @license      MIT
 // @match        https://www.bilibili.com/*
 // @grant        none
 // @run-at       document-start
-// @downloadURL  https://raw.githubusercontent.com/zlr096/Pure-Bilibili/main/Pure-Bilibili.user.js
-// @updateURL    https://raw.githubusercontent.com/zlr096/Pure-Bilibili/main/Pure-Bilibili.user.js
+// @downloadURL https://update.greasyfork.org/scripts/587162/Pure%20Bilibili.user.js
+// @updateURL https://update.greasyfork.org/scripts/587162/Pure%20Bilibili.meta.js
 // ==/UserScript==
 
 // =========================================
@@ -60,9 +60,8 @@ const CONFIG = {
     },
 };
 
-// =========================================
-//  CSS 预隐藏（开屏瞬间生效）
-// =========================================
+let cleanTimer = null;
+
 (function() {
     const style = document.createElement('style');
     style.textContent = `
@@ -73,14 +72,11 @@ const CONFIG = {
     document.documentElement.appendChild(style);
 })();
 
-// =========================================
-//  核心代码
-// =========================================
 function getGridItem(element) {
-    let container = element.closest('.bili-feed-card') || 
-                    element.closest('.feed-card') || 
-                    element.closest('.floor-single-card') || 
-                    element.closest('.bili-video-card') || 
+    let container = element.closest('.bili-feed-card') ||
+                    element.closest('.feed-card') ||
+                    element.closest('.floor-single-card') ||
+                    element.closest('.bili-video-card') ||
                     element.closest('.bili-live-card');
     if (container) return container;
     return element.parentElement && element.parentElement.children.length === 1 && element.parentElement.children[0] === element
@@ -124,15 +120,38 @@ function cleanAll() {
         .forEach(card => hideCardIfNeeded(card));
 }
 
+function hideNonVideos() {
+    if (CONFIG.block.carousel) {
+        document.querySelector('.recommended-swipe')?.remove();
+    }
+    const selector = '.bili-video-card, .bili-live-card, .bili-live-card__wrap, .floor-single-card';
+    document.querySelectorAll(selector).forEach(card => {
+        if (card.querySelector('.bili-video-card__skeleton, .bili-live-card__skeleton')) return;
+        const container = getGridItem(card);
+        container.style.display = shouldHideCard(card) ? 'none' : '';
+    });
+}
+
 function processNewNodes(nodes) {
     const selector = '.bili-video-card, .bili-live-card, .bili-live-card__wrap, .floor-single-card';
+    let hasNewCards = false;
     for (const node of nodes) {
         if (node.nodeType !== 1) continue;
+        let cards = [];
         if (node.matches && node.matches(selector)) {
-            hideCardIfNeeded(node);
+            cards = [node];
+        } else if (node.querySelectorAll) {
+            cards = node.querySelectorAll(selector);
         }
-        const cards = node.querySelectorAll ? node.querySelectorAll(selector) : [];
-        cards.forEach(card => hideCardIfNeeded(card));
+        for (const card of cards) {
+            const container = getGridItem(card);
+            container.style.display = 'none';
+            hasNewCards = true;
+        }
+    }
+    if (hasNewCards) {
+        clearTimeout(cleanTimer);
+        cleanTimer = setTimeout(hideNonVideos, 100);
     }
 }
 
@@ -227,9 +246,9 @@ function applyPlayer() {
         const video = document.querySelector('video');
         if (!video || e.target.closest('input, textarea, [contenteditable="true"]')) return;
         switch (e.code) {
-            case 'KeyJ': 
-                e.preventDefault(); 
-                video.currentTime += p.jump_op; 
+            case 'KeyJ':
+                e.preventDefault();
+                video.currentTime += p.jump_op;
                 break;
             case 'Comma':
                 e.preventDefault();
