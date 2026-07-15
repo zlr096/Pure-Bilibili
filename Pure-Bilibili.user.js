@@ -2,7 +2,7 @@
 // @name         Pure Bilibili
 // @name:zh-CN   B站纯净模式
 // @namespace    https://github.com/zlr096/Pure-Bilibili
-// @version      1.7.0
+// @version      1.7.1
 // @description  Blocks all non-video content, eliminates ads, enhances video playback, and provides silent preloading for a smooth, elegant Bilibili experience.
 // @description:zh-CN  屏蔽一切非视频卡片，让b站不再充斥牛皮藓广告，视频增强，无感预加载，回归优雅丝滑体验。
 // @author       ZLR & Assistant
@@ -73,11 +73,12 @@ let cleanTimer = null;
 })();
 
 function getGridItem(element) {
-    let container = element.closest('.bili-feed-card') ||
-                    element.closest('.feed-card') ||
-                    element.closest('.floor-single-card') ||
-                    element.closest('.bili-video-card') ||
-                    element.closest('.bili-live-card');
+    let container = element.closest('.feed-card');
+    if (container) return container;
+    container = element.closest('.bili-feed-card') ||
+                element.closest('.floor-single-card') ||
+                element.closest('.bili-video-card') ||
+                element.closest('.bili-live-card');
     if (container) return container;
     return element.parentElement && element.parentElement.children.length === 1 && element.parentElement.children[0] === element
         ? element.parentElement
